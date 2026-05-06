@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+import time
 
 from .config import VALID_STATES, load_config
 from .logging_utils import setup_file_logger
@@ -61,6 +62,22 @@ def session_allowed(config: dict, raw_event: dict, event_name: str | None) -> bo
     return session_lock_matches(lock, raw_event)
 
 
+def wait_for_minimum_attention(marker: dict, minimum_seconds: float) -> float:
+    if minimum_seconds <= 0:
+        return 0.0
+
+    timestamp_epoch = marker.get("timestamp_epoch")
+    if not isinstance(timestamp_epoch, (int, float)):
+        return 0.0
+
+    remaining = minimum_seconds - (time.time() - float(timestamp_epoch))
+    if remaining <= 0:
+        return 0.0
+
+    time.sleep(remaining)
+    return remaining
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
@@ -88,6 +105,9 @@ def main(argv: list[str] | None = None) -> int:
                 return 0
             payload = payload_from_hook_input(stdin_text, explicit_state=args.permission_resolved_state)
             if payload:
+                waited = wait_for_minimum_attention(marker, float(config.get("minimum_attention_seconds", 0)))
+                if waited:
+                    logger.info("Held attention state for %.3fs before clearing", waited)
                 atomic_write_state(payload, args.state_file or config["state_file"])
                 clear_permission_marker(config.get("permission_file"))
                 logger.info("Permission resolved; wrote state=%s", payload.get("state"))

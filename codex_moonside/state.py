@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import tempfile
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -173,6 +174,7 @@ def build_permission_marker(raw_event: dict[str, Any]) -> dict[str, Any]:
         "turn_id": extract_turn_id(raw_event),
         "cwd": extract_cwd(raw_event) or os.getcwd(),
         "timestamp": datetime.now().astimezone().isoformat(timespec="seconds"),
+        "timestamp_epoch": time.time(),
     }
 
 

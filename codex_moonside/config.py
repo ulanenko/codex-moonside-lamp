@@ -38,6 +38,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "command_suffix": "",
     "write_response": True,
     "skip_redundant_commands": True,
+    "minimum_attention_seconds": 1.0,
     "log_file": DEFAULT_DAEMON_LOG_FILE,
     "hook_log_file": DEFAULT_HOOK_LOG_FILE,
     "states": {

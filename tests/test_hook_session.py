@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
-from codex_moonside.hook import session_allowed
+from codex_moonside.hook import session_allowed, wait_for_minimum_attention
 from codex_moonside.state import write_session_lock
 
 
@@ -42,6 +43,18 @@ class HookSessionTests(unittest.TestCase):
                     "Stop",
                 )
             )
+
+    def test_wait_for_minimum_attention_sleeps_remaining_time(self) -> None:
+        started = time.time()
+        waited = wait_for_minimum_attention({"timestamp_epoch": started}, 0.02)
+
+        self.assertGreater(waited, 0)
+        self.assertGreaterEqual(time.time() - started, 0.02)
+
+    def test_wait_for_minimum_attention_ignores_old_marker(self) -> None:
+        waited = wait_for_minimum_attention({"timestamp_epoch": time.time() - 5}, 1.0)
+
+        self.assertEqual(waited, 0.0)
 
 
 if __name__ == "__main__":

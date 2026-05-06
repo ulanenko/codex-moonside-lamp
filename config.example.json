@@ -12,6 +12,7 @@
   "command_suffix": "",
   "write_response": true,
   "skip_redundant_commands": true,
+  "minimum_attention_seconds": 1.0,
   "log_file": "~/.codex-moonside-lamp/daemon.log",
   "hook_log_file": "~/.codex-moonside-lamp/hook.log",
   "states": {

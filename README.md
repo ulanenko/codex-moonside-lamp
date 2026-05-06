@@ -196,7 +196,8 @@ Important fields:
   "reconnect_interval_seconds": 3,
   "command_delay_seconds": 0.25,
   "write_response": true,
-  "skip_redundant_commands": true
+  "skip_redundant_commands": true,
+  "minimum_attention_seconds": 1.0
 }
 ```
 
