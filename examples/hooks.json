@@ -1,0 +1,61 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "codex-moonside-hook --state idle",
+            "statusMessage": "Setting lamp idle"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "codex-moonside-hook --state working",
+            "statusMessage": "Setting lamp working"
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "matcher": "Bash|apply_patch|exec_command",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "codex-moonside-hook --state attention",
+            "statusMessage": "Setting lamp attention"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash|apply_patch|exec_command",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "codex-moonside-hook --permission-resolved-state working",
+            "statusMessage": "Clearing permission lamp state"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "codex-moonside-hook --state tool_done",
+            "statusMessage": "Setting lamp finished"
+          }
+        ]
+      }
+    ]
+  }
+}

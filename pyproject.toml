@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "codex-moonside-lamp"
+version = "0.1.0"
+description = "Codex lifecycle hook status indicator for Moonside Halo lamps over BLE."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+dependencies = ["bleak>=0.22"]
+authors = [{ name = "Borys Ulanenko" }]
+keywords = ["codex", "hooks", "moonside", "ble", "status-light"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: MacOS",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Software Development",
+]
+
+[project.scripts]
+codex-moonside-hook = "codex_moonside.hook:main"
+codex-moonside-daemon = "codex_moonside.daemon:main"
+
+[tool.setuptools.packages.find]
+include = ["codex_moonside*"]

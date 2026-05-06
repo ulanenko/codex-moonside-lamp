@@ -1,0 +1,43 @@
+{
+  "state_file": "/tmp/codex_moonside_state.json",
+  "permission_file": "/tmp/codex_moonside_permission_pending.json",
+  "session_lock_file": "/tmp/codex_moonside_active_session.json",
+  "session_lock_enabled": true,
+  "lamp_name_contains": "Moonside",
+  "ble_address": null,
+  "poll_interval_seconds": 0.2,
+  "reconnect_interval_seconds": 3,
+  "scan_timeout_seconds": 5,
+  "command_delay_seconds": 0.25,
+  "command_suffix": "",
+  "write_response": true,
+  "skip_redundant_commands": true,
+  "log_file": "~/.codex-moonside-lamp/daemon.log",
+  "hook_log_file": "~/.codex-moonside-lamp/hook.log",
+  "states": {
+    "idle": {
+      "commands": ["LEDON", "BRIGH060", "COLOR255120040"]
+    },
+    "working": {
+      "commands": ["LEDON", "BRIGH060", "THEME.BEAT2.255,255,255"]
+    },
+    "tool_running": {
+      "commands": ["LEDON", "BRIGH060", "THEME.BEAT2.000,080,255"]
+    },
+    "tool_done": {
+      "commands": ["LEDON", "BRIGH060", "COLOR000255080"],
+      "duration_seconds": 0.7,
+      "return_to_previous": true,
+      "return_to_state": "idle"
+    },
+    "attention": {
+      "commands": ["LEDON", "BRIGH070", "THEME.GRADIENT1.180,0,255,40,0,120"]
+    },
+    "error": {
+      "commands": ["LEDON", "BRIGH070", "COLOR255000000"]
+    },
+    "off": {
+      "commands": ["LEDOFF"]
+    }
+  }
+}

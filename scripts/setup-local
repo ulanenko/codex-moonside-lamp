@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+python3 -m venv --system-site-packages .venv
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python -m pip install -e . --no-build-isolation
+
+echo "Created .venv and installed codex-moonside-lamp."
+echo "Activate with: source .venv/bin/activate"
+echo "Scan with:    codex-moonside-daemon --scan"

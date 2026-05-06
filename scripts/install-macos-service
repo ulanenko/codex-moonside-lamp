@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+LABEL="local.codex-moonside-lamp"
+PLIST_DIR="$HOME/Library/LaunchAgents"
+PLIST_PATH="$PLIST_DIR/$LABEL.plist"
+RUNTIME_DIR="$HOME/.codex-moonside-lamp/runtime"
+RUNTIME_VENV="$RUNTIME_DIR/.venv"
+DAEMON_PATH="$RUNTIME_DIR/codex-moonside-daemon-launcher"
+STDOUT_LOG="$HOME/.codex-moonside-lamp/launchd.stdout.log"
+STDERR_LOG="$HOME/.codex-moonside-lamp/launchd.stderr.log"
+
+mkdir -p "$PLIST_DIR" "$HOME/.codex-moonside-lamp" "$RUNTIME_DIR"
+rm -rf "$RUNTIME_DIR/codex_moonside"
+cp -R "$PWD/codex_moonside" "$RUNTIME_DIR/codex_moonside"
+find "$RUNTIME_DIR/codex_moonside" -name "__pycache__" -type d -prune -exec rm -rf {} +
+
+python3 -m venv --system-site-packages "$RUNTIME_VENV"
+if ! "$RUNTIME_VENV/bin/python" -c "import bleak" >/dev/null 2>&1; then
+  "$RUNTIME_VENV/bin/python" -m pip install -r "$PWD/requirements.txt"
+fi
+
+cat > "$DAEMON_PATH" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$RUNTIME_DIR"
+export PYTHONPATH="$RUNTIME_DIR"
+exec "$RUNTIME_VENV/bin/python" -m codex_moonside.daemon
+EOF
+chmod +x "$DAEMON_PATH"
+
+cat > "$PLIST_PATH" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>$LABEL</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>$DAEMON_PATH</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>$RUNTIME_DIR</string>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>$STDOUT_LOG</string>
+  <key>StandardErrorPath</key>
+  <string>$STDERR_LOG</string>
+</dict>
+</plist>
+EOF
+
+launchctl bootout "gui/$(id -u)" "$PLIST_PATH" >/dev/null 2>&1 || true
+launchctl bootstrap "gui/$(id -u)" "$PLIST_PATH"
+launchctl enable "gui/$(id -u)/$LABEL"
+launchctl kickstart -k "gui/$(id -u)/$LABEL"
+
+echo "Installed and started $LABEL"
+echo "Plist: $PLIST_PATH"
+echo "Daemon log: $HOME/.codex-moonside-lamp/daemon.log"
+echo "Launch stdout: $STDOUT_LOG"
+echo "Launch stderr: $STDERR_LOG"
