@@ -52,7 +52,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         },
         "tool_done": {
             "commands": ["LEDON", "BRIGH060", "COLOR000255080"],
-            "duration_seconds": 0.7,
+            "duration_seconds": 1.5,
             "return_to_previous": True,
             "return_to_state": "idle",
         },
