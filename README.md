@@ -197,7 +197,9 @@ Important fields:
   "command_delay_seconds": 0.25,
   "write_response": true,
   "skip_redundant_commands": true,
-  "minimum_attention_seconds": 1.0
+  "minimum_attention_seconds": 1.0,
+  "ambient_after_idle_seconds": 1800,
+  "ambient_state": "ambient"
 }
 ```
 
@@ -207,6 +209,16 @@ Default attention effect:
 {
   "attention": {
     "commands": ["LEDON", "BRIGH070", "THEME.GRADIENT1.180,0,255,40,0,120"]
+  }
+}
+```
+
+Default ambient effect after 30 minutes idle:
+
+```json
+{
+  "ambient": {
+    "commands": ["LEDON", "BRIGH070", "THEME.RAINBOW3.0"]
   }
 }
 ```

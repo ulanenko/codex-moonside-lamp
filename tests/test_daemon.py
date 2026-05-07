@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import unittest
 
-from codex_moonside.daemon import is_recoverable_ble_send_error, send_state
+from codex_moonside.daemon import is_recoverable_ble_send_error, send_state, should_apply_ambient_timeout
 
 
 class NullLogger:
@@ -67,6 +67,35 @@ class DaemonSendStateTests(unittest.TestCase):
         self.assertTrue(is_recoverable_ble_send_error(RuntimeError("BLE client is not connected")))
         self.assertTrue(is_recoverable_ble_send_error(RuntimeError("Peripheral disconnected")))
         self.assertFalse(is_recoverable_ble_send_error(ValueError("bad command")))
+
+    def test_ambient_timeout_applies_only_after_idle_quiet_period(self) -> None:
+        self.assertTrue(
+            should_apply_ambient_timeout(
+                current_state="idle",
+                ambient_applied=False,
+                last_activity_monotonic=100,
+                now_monotonic=1900,
+                timeout_seconds=1800,
+            )
+        )
+        self.assertFalse(
+            should_apply_ambient_timeout(
+                current_state="working",
+                ambient_applied=False,
+                last_activity_monotonic=100,
+                now_monotonic=1900,
+                timeout_seconds=1800,
+            )
+        )
+        self.assertFalse(
+            should_apply_ambient_timeout(
+                current_state="idle",
+                ambient_applied=True,
+                last_activity_monotonic=100,
+                now_monotonic=1900,
+                timeout_seconds=1800,
+            )
+        )
 
 
 if __name__ == "__main__":

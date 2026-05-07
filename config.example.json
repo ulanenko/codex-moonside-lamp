@@ -13,6 +13,8 @@
   "write_response": true,
   "skip_redundant_commands": true,
   "minimum_attention_seconds": 1.0,
+  "ambient_after_idle_seconds": 1800,
+  "ambient_state": "ambient",
   "log_file": "~/.codex-moonside-lamp/daemon.log",
   "hook_log_file": "~/.codex-moonside-lamp/hook.log",
   "states": {
@@ -36,6 +38,9 @@
     },
     "error": {
       "commands": ["LEDON", "BRIGH070", "COLOR255000000"]
+    },
+    "ambient": {
+      "commands": ["LEDON", "BRIGH070", "THEME.RAINBOW3.0"]
     },
     "off": {
       "commands": ["LEDOFF"]

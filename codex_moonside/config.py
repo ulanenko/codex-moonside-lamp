@@ -20,6 +20,7 @@ VALID_STATES = {
     "tool_done",
     "attention",
     "error",
+    "ambient",
     "off",
 }
 
@@ -39,6 +40,8 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "write_response": True,
     "skip_redundant_commands": True,
     "minimum_attention_seconds": 1.0,
+    "ambient_after_idle_seconds": 1800,
+    "ambient_state": "ambient",
     "log_file": DEFAULT_DAEMON_LOG_FILE,
     "hook_log_file": DEFAULT_HOOK_LOG_FILE,
     "states": {
@@ -62,6 +65,9 @@ DEFAULT_CONFIG: dict[str, Any] = {
         },
         "error": {
             "commands": ["LEDON", "BRIGH070", "COLOR255000000"],
+        },
+        "ambient": {
+            "commands": ["LEDON", "BRIGH070", "THEME.RAINBOW3.0"],
         },
         "off": {
             "commands": ["LEDOFF"],

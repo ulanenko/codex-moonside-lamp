@@ -4,6 +4,7 @@ import argparse
 import asyncio
 import json
 import sys
+import time
 from typing import Any
 
 from .config import VALID_STATES, commands_for_state, load_config
@@ -123,25 +124,70 @@ def return_target_for_transient(
     return current_state or previous_state or "idle"
 
 
+def should_apply_ambient_timeout(
+    *,
+    current_state: str | None,
+    ambient_applied: bool,
+    last_activity_monotonic: float,
+    now_monotonic: float,
+    timeout_seconds: float,
+) -> bool:
+    if timeout_seconds <= 0 or ambient_applied:
+        return False
+    if current_state != "idle":
+        return False
+    return now_monotonic - last_activity_monotonic >= timeout_seconds
+
+
 async def watch_state_file(controller: MoonsideBLE, config: dict[str, Any], logger: Any) -> None:
     state_file = config["state_file"]
     poll_interval = float(config.get("poll_interval_seconds", 0.2))
+    ambient_after_idle_seconds = float(config.get("ambient_after_idle_seconds", 0))
+    ambient_state = str(config.get("ambient_state", "ambient"))
     last_fingerprint: str | None = None
     current_state: str | None = None
     previous_state: str | None = None
+    last_activity_monotonic = time.monotonic()
+    ambient_applied = False
+
+    async def apply_ambient_if_due() -> bool:
+        nonlocal current_state, previous_state, ambient_applied
+        if not should_apply_ambient_timeout(
+            current_state=current_state,
+            ambient_applied=ambient_applied,
+            last_activity_monotonic=last_activity_monotonic,
+            now_monotonic=time.monotonic(),
+            timeout_seconds=ambient_after_idle_seconds,
+        ):
+            return False
+
+        logger.info(
+            "No Codex activity for %.1fs after idle; applying ambient state=%s",
+            ambient_after_idle_seconds,
+            ambient_state,
+        )
+        await send_state(controller, config, ambient_state, logger)
+        previous_state = current_state
+        current_state = ambient_state
+        ambient_applied = True
+        return True
 
     logger.info("Watching state file: %s", state_file)
     while True:
         payload = read_state_file(state_file)
         if payload is None:
+            await apply_ambient_if_due()
             await asyncio.sleep(poll_interval)
             continue
 
         fingerprint = state_file_fingerprint(payload)
         if fingerprint == last_fingerprint:
+            await apply_ambient_if_due()
             await asyncio.sleep(poll_interval)
             continue
         last_fingerprint = fingerprint
+        last_activity_monotonic = time.monotonic()
+        ambient_applied = False
 
         state = str(payload["state"])
         state_config = config.get("states", {}).get(state, {})
