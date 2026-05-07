@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PACKAGE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+PROJECT_ROOT="$(cd "$PACKAGE_DIR/../.." && pwd)"
+APP_DIR="$PACKAGE_DIR/build/Codex Moonside.app"
+CONTENTS_DIR="$APP_DIR/Contents"
+MACOS_DIR="$CONTENTS_DIR/MacOS"
+RESOURCES_DIR="$CONTENTS_DIR/Resources"
+
+cd "$PACKAGE_DIR"
+mkdir -p "$PACKAGE_DIR/build/clang-module-cache"
+clang \
+  -fobjc-arc \
+  -framework AppKit \
+  -framework Foundation \
+  "$PACKAGE_DIR/Sources/CodexMoonsideMenuBar/main.m" \
+  -o "$PACKAGE_DIR/build/CodexMoonsideMenuBar"
+
+rm -rf "$APP_DIR"
+mkdir -p "$MACOS_DIR" "$RESOURCES_DIR"
+cp "$PACKAGE_DIR/build/CodexMoonsideMenuBar" "$MACOS_DIR/CodexMoonsideMenuBar"
+printf '%s\n' "$PROJECT_ROOT" > "$RESOURCES_DIR/ProjectRoot.txt"
+
+cat > "$CONTENTS_DIR/Info.plist" <<'PLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleExecutable</key>
+  <string>CodexMoonsideMenuBar</string>
+  <key>CFBundleIdentifier</key>
+  <string>local.codex-moonside-menu-bar</string>
+  <key>CFBundleName</key>
+  <string>Codex Moonside</string>
+  <key>CFBundlePackageType</key>
+  <string>APPL</string>
+  <key>CFBundleShortVersionString</key>
+  <string>0.1.0</string>
+  <key>CFBundleVersion</key>
+  <string>1</string>
+  <key>LSMinimumSystemVersion</key>
+  <string>14.0</string>
+  <key>LSUIElement</key>
+  <true/>
+  <key>NSBluetoothAlwaysUsageDescription</key>
+  <string>Codex Moonside controls the lamp through the existing local daemon.</string>
+</dict>
+</plist>
+PLIST
+
+echo "Built $APP_DIR"

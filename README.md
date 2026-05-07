@@ -174,6 +174,32 @@ If daemon code changes after installing the LaunchAgent, rerun:
 scripts/install-macos-service
 ```
 
+## Optional macOS Menu Bar App
+
+This branch includes an experimental menu bar wrapper for macOS. It does not replace the Python daemon or talk to BLE directly. It reads the existing config, state, and log files, then calls the same local scripts and CLI commands you would run from Terminal.
+
+Build the local unsigned app:
+
+```bash
+macos/MenuBarApp/Scripts/package-app
+```
+
+Launch it:
+
+```bash
+open "macos/MenuBarApp/build/Codex Moonside.app"
+```
+
+The menu shows daemon status, current lamp state, configured lamp target, and quick actions for testing `attention`, testing `ambient`, turning the lamp off, scanning BLE devices, restarting the daemon, and opening logs/config.
+
+Current limitations:
+
+- macOS only
+- local unsigned app
+- developer convenience wrapper, not a polished installer
+- expects the project checkout and `.venv` to remain available
+- generated `.app` bundles are not committed to Git
+
 ## Config
 
 Default config path:
