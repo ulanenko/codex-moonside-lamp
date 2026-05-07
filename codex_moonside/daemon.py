@@ -85,7 +85,25 @@ async def send_state(controller: MoonsideBLE, config: dict[str, Any], state: str
         logger.warning("No commands configured for state=%s", state)
         return
     logger.info("Applying state=%s commands=%s", state, commands)
-    await controller.send_commands(commands)
+    try:
+        await controller.send_commands(commands)
+    except Exception as exc:
+        if not is_recoverable_ble_send_error(exc):
+            raise
+        logger.warning("BLE send failed for state=%s; reconnecting and retrying: %s", state, exc)
+        try:
+            await controller.disconnect()
+        except Exception as disconnect_exc:
+            logger.warning("BLE disconnect during recovery failed: %s", disconnect_exc)
+        await controller.connect(timeout=float(config.get("scan_timeout_seconds", 5)))
+        await controller.send_commands(commands, optimize=False)
+
+
+def is_recoverable_ble_send_error(exc: BaseException) -> bool:
+    message = str(exc).lower()
+    if "not connected" in message or "disconnected" in message:
+        return True
+    return exc.__class__.__name__ in {"BleakError", "BleakDeviceNotFoundError"}
 
 
 def state_file_fingerprint(payload: dict[str, Any]) -> str:
