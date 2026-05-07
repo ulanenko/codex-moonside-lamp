@@ -28,7 +28,7 @@ Tested setup:
 
 - macOS
 - Python 3.12
-- Codex local app/CLI hooks with `codex_hooks = true`
+- Codex local app/CLI hooks with `hooks = true`
 - Moonside Halo advertising as `MOONSIDE-O101`
 
 Linux may work if `bleak` can access the Bluetooth adapter. Windows is not a target.
@@ -107,8 +107,10 @@ Enable Codex hooks in `~/.codex/config.toml`:
 
 ```toml
 [features]
-codex_hooks = true
+hooks = true
 ```
+
+Older Codex builds used `codex_hooks = true`; current desktop builds warn that this name is deprecated.
 
 Generate hook JSON using the absolute path to your local hook executable:
 
@@ -116,17 +118,27 @@ Generate hook JSON using the absolute path to your local hook executable:
 python install_hooks.py --print-hooks
 ```
 
-Install global Codex hooks if you do not already have a custom `~/.codex/hooks.json`:
+Install global Codex hooks if you do not already have a custom `~/.codex/hooks.json`.
+`--trust-hooks` also writes the `hooks.state` trust hashes required by newer Codex builds:
 
 ```bash
-python install_hooks.py --write-hooks
+python install_hooks.py --write-hooks --trust-hooks
 ```
 
 Use `--force` only if you want to overwrite the existing hooks file:
 
 ```bash
-python install_hooks.py --write-hooks --force
+python install_hooks.py --write-hooks --trust-hooks --force
 ```
+
+If you edit `~/.codex/hooks.json` later, rerun:
+
+```bash
+python install_hooks.py --trust-hooks
+```
+
+Codex only runs hook command configs whose current trusted hash is recorded in
+`~/.codex/config.toml`.
 
 Restart Codex after changing hook configuration.
 
@@ -225,9 +237,28 @@ Important fields:
   "skip_redundant_commands": true,
   "minimum_attention_seconds": 1.0,
   "ambient_after_idle_seconds": 1800,
-  "ambient_state": "ambient"
+  "ambient_state": "ambient",
+  "codex_process_tracking_enabled": false,
+  "codex_process_names": ["Codex"],
+  "codex_process_poll_interval_seconds": 5,
+  "codex_process_missing_seconds": 60,
+  "codex_process_missing_state": "ambient",
+  "codex_process_return_state": "idle"
 }
 ```
+
+Optional macOS process tracking lets the daemon switch the lamp to ambient, or to any other configured state, when the Codex desktop app has been closed for a while:
+
+```json
+{
+  "codex_process_tracking_enabled": true,
+  "codex_process_missing_seconds": 60,
+  "codex_process_missing_state": "ambient",
+  "codex_process_return_state": "idle"
+}
+```
+
+This watches process names with `ps`, so it does not require the menu bar app. It is best suited for the Codex desktop app; leave it disabled if you mainly use Codex CLI without the app.
 
 Default attention effect:
 
@@ -291,7 +322,7 @@ python3 -B -m py_compile codex_moonside/*.py install_hooks.py
 
 - `bobek-balinek/claude-lamp`: Claude Code status integration for Moonside lamps.
 - TheGreyDiamond Moonside reverse-engineering notes and BLE connector examples.
-- Codex hooks documentation and the `codex_hooks` feature flag.
+- Codex hooks documentation and the `hooks` feature flag.
 
 ## License
 

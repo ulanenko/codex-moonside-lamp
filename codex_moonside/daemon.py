@@ -3,6 +3,8 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+from pathlib import Path
+import subprocess
 import sys
 import time
 from typing import Any
@@ -139,16 +141,98 @@ def should_apply_ambient_timeout(
     return now_monotonic - last_activity_monotonic >= timeout_seconds
 
 
+def configured_process_names(config: dict[str, Any]) -> list[str]:
+    raw_names = config.get("codex_process_names", [])
+    if isinstance(raw_names, str):
+        raw_names = [raw_names]
+    if not isinstance(raw_names, list):
+        return []
+    return [str(name).strip() for name in raw_names if str(name).strip()]
+
+
+def process_name_matches(command: str, expected_name: str) -> bool:
+    command = command.strip()
+    expected_name = expected_name.strip()
+    if not command or not expected_name:
+        return False
+
+    basename = Path(command).name
+    if basename == expected_name:
+        return True
+    if basename.startswith(f"{expected_name} Helper"):
+        return True
+    return f"/{expected_name}.app/" in command
+
+
+def is_configured_process_running(process_names: list[str], process_lines: list[str]) -> bool:
+    if not process_names:
+        return False
+    return any(
+        process_name_matches(line, process_name)
+        for line in process_lines
+        for process_name in process_names
+    )
+
+
+def read_process_commands() -> list[str]:
+    result = subprocess.run(
+        ["/bin/ps", "-axo", "comm="],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=2,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr.strip() or "Could not list running processes")
+    return result.stdout.splitlines()
+
+
+def should_apply_codex_process_missing_state(
+    *,
+    tracking_enabled: bool,
+    process_running: bool,
+    missing_state_applied: bool,
+    last_seen_monotonic: float,
+    now_monotonic: float,
+    missing_seconds: float,
+) -> bool:
+    if not tracking_enabled or process_running or missing_state_applied:
+        return False
+    if missing_seconds <= 0:
+        return True
+    return now_monotonic - last_seen_monotonic >= missing_seconds
+
+
 async def watch_state_file(controller: MoonsideBLE, config: dict[str, Any], logger: Any) -> None:
     state_file = config["state_file"]
     poll_interval = float(config.get("poll_interval_seconds", 0.2))
     ambient_after_idle_seconds = float(config.get("ambient_after_idle_seconds", 0))
     ambient_state = str(config.get("ambient_state", "ambient"))
+    process_tracking_enabled = bool(config.get("codex_process_tracking_enabled", False))
+    process_names = configured_process_names(config)
+    process_poll_interval = float(config.get("codex_process_poll_interval_seconds", 5))
+    process_missing_seconds = float(config.get("codex_process_missing_seconds", 60))
+    process_missing_state = str(config.get("codex_process_missing_state", "off"))
+    process_return_state = str(config.get("codex_process_return_state", "idle"))
     last_fingerprint: str | None = None
     current_state: str | None = None
     previous_state: str | None = None
     last_activity_monotonic = time.monotonic()
     ambient_applied = False
+    last_process_check_monotonic = 0.0
+    last_process_seen_monotonic = time.monotonic()
+    last_process_running = True
+    process_missing_state_applied = False
+
+    if process_tracking_enabled and not process_names:
+        logger.warning("Codex process tracking is enabled, but codex_process_names is empty; disabling tracking")
+        process_tracking_enabled = False
+    if process_missing_state not in VALID_STATES:
+        logger.warning("Unknown codex_process_missing_state=%s; using off", process_missing_state)
+        process_missing_state = "off"
+    if process_return_state not in VALID_STATES:
+        logger.warning("Unknown codex_process_return_state=%s; using idle", process_return_state)
+        process_return_state = "idle"
 
     async def apply_ambient_if_due() -> bool:
         nonlocal current_state, previous_state, ambient_applied
@@ -172,8 +256,63 @@ async def watch_state_file(controller: MoonsideBLE, config: dict[str, Any], logg
         ambient_applied = True
         return True
 
+    async def codex_process_allows_state_updates() -> bool:
+        nonlocal current_state, previous_state, last_activity_monotonic, ambient_applied
+        nonlocal last_process_check_monotonic, last_process_seen_monotonic, last_process_running
+        nonlocal process_missing_state_applied
+
+        if not process_tracking_enabled:
+            return True
+
+        now = time.monotonic()
+        if now - last_process_check_monotonic >= process_poll_interval:
+            last_process_check_monotonic = now
+            try:
+                last_process_running = is_configured_process_running(process_names, read_process_commands())
+            except Exception as exc:
+                logger.warning("Could not inspect Codex process state: %s", exc)
+                return True
+
+            if last_process_running:
+                last_process_seen_monotonic = now
+                if process_missing_state_applied:
+                    logger.info("Codex process detected; applying return state=%s", process_return_state)
+                    previous_state = current_state
+                    current_state = process_return_state
+                    last_activity_monotonic = now
+                    ambient_applied = False
+                    process_missing_state_applied = False
+                    await send_state(controller, config, process_return_state, logger)
+                return True
+
+        if should_apply_codex_process_missing_state(
+            tracking_enabled=process_tracking_enabled,
+            process_running=last_process_running,
+            missing_state_applied=process_missing_state_applied,
+            last_seen_monotonic=last_process_seen_monotonic,
+            now_monotonic=now,
+            missing_seconds=process_missing_seconds,
+        ):
+            logger.info(
+                "Codex process not seen for %.1fs; applying state=%s",
+                process_missing_seconds,
+                process_missing_state,
+            )
+            await send_state(controller, config, process_missing_state, logger)
+            previous_state = current_state
+            current_state = process_missing_state
+            ambient_applied = False
+            process_missing_state_applied = True
+            return False
+
+        return not process_missing_state_applied
+
     logger.info("Watching state file: %s", state_file)
     while True:
+        if not await codex_process_allows_state_updates():
+            await asyncio.sleep(poll_interval)
+            continue
+
         payload = read_state_file(state_file)
         if payload is None:
             await apply_ambient_if_due()

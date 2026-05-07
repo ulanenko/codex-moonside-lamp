@@ -42,6 +42,12 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "minimum_attention_seconds": 1.0,
     "ambient_after_idle_seconds": 1800,
     "ambient_state": "ambient",
+    "codex_process_tracking_enabled": False,
+    "codex_process_names": ["Codex"],
+    "codex_process_poll_interval_seconds": 5,
+    "codex_process_missing_seconds": 60,
+    "codex_process_missing_state": "ambient",
+    "codex_process_return_state": "idle",
     "log_file": DEFAULT_DAEMON_LOG_FILE,
     "hook_log_file": DEFAULT_HOOK_LOG_FILE,
     "states": {

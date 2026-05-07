@@ -3,7 +3,15 @@ from __future__ import annotations
 import asyncio
 import unittest
 
-from codex_moonside.daemon import is_recoverable_ble_send_error, send_state, should_apply_ambient_timeout
+from codex_moonside.daemon import (
+    configured_process_names,
+    is_configured_process_running,
+    is_recoverable_ble_send_error,
+    process_name_matches,
+    send_state,
+    should_apply_codex_process_missing_state,
+    should_apply_ambient_timeout,
+)
 
 
 class NullLogger:
@@ -76,6 +84,58 @@ class DaemonSendStateTests(unittest.TestCase):
                 last_activity_monotonic=100,
                 now_monotonic=1900,
                 timeout_seconds=1800,
+            )
+        )
+
+    def test_configured_process_names_accepts_string_or_list(self) -> None:
+        self.assertEqual(configured_process_names({"codex_process_names": "Codex"}), ["Codex"])
+        self.assertEqual(configured_process_names({"codex_process_names": ["Codex", " "]}), ["Codex"])
+        self.assertEqual(configured_process_names({"codex_process_names": 1}), [])
+
+    def test_process_name_matching_avoids_codex_moonside_helper(self) -> None:
+        self.assertTrue(process_name_matches("/Applications/Codex.app/Contents/MacOS/Codex", "Codex"))
+        self.assertTrue(process_name_matches("/Applications/Codex.app/Contents/Frameworks/Codex Helper", "Codex"))
+        self.assertFalse(process_name_matches("/tmp/CodexMoonsideMenuBar", "Codex"))
+        self.assertFalse(process_name_matches("/usr/local/bin/codex-moonside-daemon", "Codex"))
+
+    def test_configured_process_running_checks_all_process_lines(self) -> None:
+        self.assertTrue(
+            is_configured_process_running(
+                ["Codex"],
+                ["/System/Library/CoreServices/Finder.app/Contents/MacOS/Finder", "/Applications/Codex.app/Contents/MacOS/Codex"],
+            )
+        )
+        self.assertFalse(is_configured_process_running(["Codex"], ["/tmp/CodexMoonsideMenuBar"]))
+
+    def test_process_missing_state_waits_for_grace_period(self) -> None:
+        self.assertTrue(
+            should_apply_codex_process_missing_state(
+                tracking_enabled=True,
+                process_running=False,
+                missing_state_applied=False,
+                last_seen_monotonic=100,
+                now_monotonic=160,
+                missing_seconds=60,
+            )
+        )
+        self.assertFalse(
+            should_apply_codex_process_missing_state(
+                tracking_enabled=True,
+                process_running=False,
+                missing_state_applied=False,
+                last_seen_monotonic=100,
+                now_monotonic=159,
+                missing_seconds=60,
+            )
+        )
+        self.assertFalse(
+            should_apply_codex_process_missing_state(
+                tracking_enabled=True,
+                process_running=True,
+                missing_state_applied=False,
+                last_seen_monotonic=100,
+                now_monotonic=200,
+                missing_seconds=60,
             )
         )
         self.assertFalse(
