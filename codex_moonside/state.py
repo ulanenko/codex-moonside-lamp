@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import hashlib
 import tempfile
 import time
 from datetime import datetime
@@ -80,6 +81,27 @@ def extract_tool_use_id(raw_event: dict[str, Any]) -> str | None:
     if isinstance(value, str) and value:
         return value
     return None
+
+
+def extract_tool_input(raw_event: dict[str, Any]) -> Any | None:
+    for key in ("tool_input", "toolInput"):
+        value = raw_event.get(key)
+        if value is not None:
+            return value
+    return None
+
+
+def tool_input_fingerprint(raw_event: dict[str, Any]) -> str | None:
+    tool_input = extract_tool_input(raw_event)
+    if tool_input is None:
+        return None
+    if isinstance(tool_input, dict) and tool_input.get("command") is not None:
+        tool_input = {"command": tool_input.get("command")}
+    try:
+        encoded = json.dumps(tool_input, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    except TypeError:
+        encoded = repr(tool_input).encode("utf-8")
+    return "sha256:" + hashlib.sha256(encoded).hexdigest()
 
 
 def extract_cwd(raw_event: dict[str, Any]) -> str | None:
@@ -170,6 +192,7 @@ def build_permission_marker(raw_event: dict[str, Any]) -> dict[str, Any]:
     return {
         "event": extract_event_name(raw_event),
         "tool": extract_tool_name(raw_event),
+        "tool_input_hash": tool_input_fingerprint(raw_event),
         "session_id": extract_session_id(raw_event),
         "turn_id": extract_turn_id(raw_event),
         "cwd": extract_cwd(raw_event) or os.getcwd(),
@@ -230,6 +253,13 @@ def permission_marker_matches(marker: dict[str, Any], raw_event: dict[str, Any])
     marker_tool = marker.get("tool")
     event_tool = extract_tool_name(raw_event)
     if marker_tool and event_tool and marker_tool != event_tool:
+        return False
+
+    marker_tool_input_hash = marker.get("tool_input_hash")
+    event_tool_input_hash = tool_input_fingerprint(raw_event)
+    if marker_tool_input_hash and event_tool_input_hash and marker_tool_input_hash != event_tool_input_hash:
+        return False
+    if marker_tool_input_hash and not event_tool_input_hash:
         return False
 
     return matched_identity

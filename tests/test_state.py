@@ -75,6 +75,7 @@ class StateTests(unittest.TestCase):
                 "session_id": "s1",
                 "turn_id": "t1",
                 "cwd": "/tmp/project",
+                "tool_input": {"command": "touch /tmp/ok", "description": "Need approval"},
             }
         )
         self.assertTrue(
@@ -87,6 +88,7 @@ class StateTests(unittest.TestCase):
                     "turn_id": "t1",
                     "cwd": "/tmp/project",
                     "tool_use_id": "u1",
+                    "tool_input": {"command": "touch /tmp/ok"},
                 },
             )
         )
@@ -99,6 +101,20 @@ class StateTests(unittest.TestCase):
                     "session_id": "s1",
                     "turn_id": "other",
                     "cwd": "/tmp/project",
+                    "tool_input": {"command": "touch /tmp/ok"},
+                },
+            )
+        )
+        self.assertFalse(
+            permission_marker_matches(
+                marker,
+                {
+                    "hook_event_name": "PostToolUse",
+                    "tool_name": "Bash",
+                    "session_id": "s1",
+                    "turn_id": "t1",
+                    "cwd": "/tmp/project",
+                    "tool_input": {"command": "touch /tmp/different"},
                 },
             )
         )
