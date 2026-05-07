@@ -28,6 +28,7 @@ classifiers = [
 [project.scripts]
 codex-moonside-hook = "codex_moonside.hook:main"
 codex-moonside-daemon = "codex_moonside.daemon:main"
+codex-moonside-doctor = "codex_moonside.doctor:main"
 
 [tool.setuptools.packages.find]
 include = ["codex_moonside*"]

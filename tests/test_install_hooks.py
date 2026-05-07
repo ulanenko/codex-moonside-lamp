@@ -5,12 +5,12 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from install_hooks import (
-    load_hooks_template,
+from codex_moonside.hooks_config import (
     trusted_hook_state_entries,
     upsert_hook_trust_entries,
     write_hook_trust,
 )
+from install_hooks import load_hooks_template
 
 
 class InstallHooksTests(unittest.TestCase):

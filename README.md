@@ -142,6 +142,41 @@ Codex only runs hook command configs whose current trusted hash is recorded in
 
 Restart Codex after changing hook configuration.
 
+## Doctor
+
+Run the setup doctor when hooks do not fire, after a Codex update, or before filing an issue:
+
+```bash
+codex-moonside-doctor
+```
+
+It checks:
+
+- Codex binary and version lookup
+- `~/.codex/config.toml` hook feature flags
+- `~/.codex/hooks.json` expected events
+- newer Codex `hooks.state` trusted hashes
+- hook executable paths
+- a safe direct hook smoke test using a temporary state file
+- macOS LaunchAgent status
+- recent daemon and hook logs
+
+If hook trust hashes are missing or stale, apply the safe fix:
+
+```bash
+codex-moonside-doctor --fix
+```
+
+This updates only the hook trust entries in `~/.codex/config.toml`.
+
+For the strongest check, run a real tiny Codex CLI turn:
+
+```bash
+codex-moonside-doctor --live-codex-test
+```
+
+That can spend a small number of tokens and briefly change the lamp, so it is opt-in.
+
 ## Run
 
 Foreground daemon:
@@ -316,6 +351,7 @@ Only one daemon should own the lamp BLE connection. Stop any foreground `codex-m
 ```bash
 python3 -B -m unittest discover -s tests
 python3 -B -m py_compile codex_moonside/*.py install_hooks.py
+codex-moonside-doctor --skip-direct-hook-test
 ```
 
 ## Prior Art
