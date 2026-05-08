@@ -100,17 +100,24 @@ def main(argv: list[str] | None = None) -> int:
                 logger.info("Ignoring permission resolver for event=%s", event_name)
                 return 0
             marker = read_permission_marker(config.get("permission_file"))
-            if not marker or not permission_marker_matches(marker, raw_event):
+            if marker and not permission_marker_matches(marker, raw_event):
                 logger.info("No matching permission marker for PostToolUse; ignoring")
+                return 0
+            if marker is None and not session_allowed(config, raw_event, event_name):
+                logger.info("Ignoring PostToolUse heartbeat from inactive session")
                 return 0
             payload = payload_from_hook_input(stdin_text, explicit_state=args.permission_resolved_state)
             if payload:
-                waited = wait_for_minimum_attention(marker, float(config.get("minimum_attention_seconds", 0)))
-                if waited:
-                    logger.info("Held attention state for %.3fs before clearing", waited)
+                if marker is not None:
+                    waited = wait_for_minimum_attention(marker, float(config.get("minimum_attention_seconds", 0)))
+                    if waited:
+                        logger.info("Held attention state for %.3fs before clearing", waited)
                 atomic_write_state(payload, args.state_file or config["state_file"])
-                clear_permission_marker(config.get("permission_file"))
-                logger.info("Permission resolved; wrote state=%s", payload.get("state"))
+                if marker is not None:
+                    clear_permission_marker(config.get("permission_file"))
+                    logger.info("Permission resolved; wrote state=%s", payload.get("state"))
+                else:
+                    logger.info("PostToolUse heartbeat; wrote state=%s", payload.get("state"))
             return 0
 
         if extract_event_name(raw_event) == "PermissionRequest":

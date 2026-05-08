@@ -41,9 +41,10 @@ Linux may work if `bleak` can access the Bluetooth adapter. Windows is not a tar
 | `UserPromptSubmit` | `working` | animated `BEAT2` |
 | `PermissionRequest` | `attention` | purple gradient approval-needed signal |
 | matching `PostToolUse` after approval | `working` | return to working |
+| ordinary `PostToolUse` | `working` | quiet activity heartbeat |
 | `Stop` | `tool_done` | green finish flash, then idle |
 
-Tool-use events are intentionally not used as normal status changes. This keeps the lamp calmer during long responses.
+Tool-use events are intentionally not used for separate tool-running transitions. Ordinary `PostToolUse` events still refresh `working` so a premature `Stop` event or long-running turn does not leave the lamp idle while Codex is active.
 
 When multiple Codex chats are open, the hook uses an active-session lock:
 
