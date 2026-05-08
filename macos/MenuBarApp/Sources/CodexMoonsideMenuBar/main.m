@@ -152,6 +152,18 @@ static NSString *FindProjectRoot(NSString *startPath) {
     return item;
 }
 
+- (NSMenuItem *)submenuItem:(NSString *)title submenu:(NSMenu *)submenu {
+    NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:title action:nil keyEquivalent:@""];
+    item.submenu = submenu;
+    return item;
+}
+
+- (NSMenuItem *)stateActionItem:(NSString *)title state:(NSString *)state {
+    NSMenuItem *item = [self actionItem:title selector:@selector(setStateFromMenuItem:)];
+    item.representedObject = state;
+    return item;
+}
+
 - (NSDictionary *)config {
     return ReadJSONFile(self.paths.configPath);
 }
@@ -221,26 +233,36 @@ static NSString *FindProjectRoot(NSString *startPath) {
 
     NSMenu *menu = [[NSMenu alloc] init];
     [menu addItem:[self disabledItem:@"Codex Moonside"]];
-    [menu addItem:NSMenuItem.separatorItem];
-    [menu addItem:[self disabledItem:[NSString stringWithFormat:@"Daemon: %@", serviceRunning ? @"Running" : @"Stopped"]]];
-    [menu addItem:[self disabledItem:[NSString stringWithFormat:@"Lamp: %@", [self lampLabel:config]]]];
-    [menu addItem:[self disabledItem:[NSString stringWithFormat:@"State: %@", stateName]]];
+
+    NSMenu *statusMenu = [[NSMenu alloc] initWithTitle:@"Status"];
+    [statusMenu addItem:[self disabledItem:[NSString stringWithFormat:@"Daemon: %@", serviceRunning ? @"Running" : @"Stopped"]]];
+    [statusMenu addItem:[self disabledItem:[NSString stringWithFormat:@"Lamp: %@", [self lampLabel:config]]]];
+    [statusMenu addItem:[self disabledItem:[NSString stringWithFormat:@"State: %@", stateName]]];
 
     NSString *event = state[@"event"];
     if ([event isKindOfClass:NSString.class] && event.length > 0) {
-        [menu addItem:[self disabledItem:[NSString stringWithFormat:@"Last event: %@", event]]];
+        [statusMenu addItem:[self disabledItem:[NSString stringWithFormat:@"Last event: %@", event]]];
     }
 
     NSString *ambient = [self formatAmbientSeconds:config[@"ambient_after_idle_seconds"]];
     if (ambient.length > 0) {
-        [menu addItem:[self disabledItem:[NSString stringWithFormat:@"Ambient after: %@", ambient]]];
+        [statusMenu addItem:[self disabledItem:[NSString stringWithFormat:@"Ambient after: %@", ambient]]];
     }
+    [menu addItem:[self submenuItem:[NSString stringWithFormat:@"Status: %@", stateName] submenu:statusMenu]];
 
     [menu addItem:NSMenuItem.separatorItem];
-    [menu addItem:[self actionItem:@"Test Attention" selector:@selector(testAttention)]];
-    [menu addItem:[self actionItem:@"Test Ambient" selector:@selector(testAmbient)]];
-    [menu addItem:[self actionItem:@"Turn Off" selector:@selector(turnOff)]];
-    [menu addItem:[self actionItem:@"Scan Lamps..." selector:@selector(scanLamps)]];
+    NSMenu *controlsMenu = [[NSMenu alloc] initWithTitle:@"Controls"];
+    [controlsMenu addItem:[self stateActionItem:@"Idle" state:@"idle"]];
+    [controlsMenu addItem:[self stateActionItem:@"Working" state:@"working"]];
+    [controlsMenu addItem:[self stateActionItem:@"Tool Running" state:@"tool_running"]];
+    [controlsMenu addItem:[self stateActionItem:@"Tool Done" state:@"tool_done"]];
+    [controlsMenu addItem:[self stateActionItem:@"Attention" state:@"attention"]];
+    [controlsMenu addItem:[self stateActionItem:@"Error" state:@"error"]];
+    [controlsMenu addItem:[self stateActionItem:@"Ambient" state:@"ambient"]];
+    [controlsMenu addItem:[self stateActionItem:@"Off" state:@"off"]];
+    [controlsMenu addItem:NSMenuItem.separatorItem];
+    [controlsMenu addItem:[self actionItem:@"Scan Lamps..." selector:@selector(scanLamps)]];
+    [menu addItem:[self submenuItem:@"Controls" submenu:controlsMenu]];
 
     [menu addItem:NSMenuItem.separatorItem];
     [menu addItem:[self actionItem:serviceRunning ? @"Restart Daemon" : @"Start Daemon" selector:@selector(restartDaemon)]];
@@ -255,6 +277,13 @@ static NSString *FindProjectRoot(NSString *startPath) {
     [menu addItem:NSMenuItem.separatorItem];
     [menu addItem:[self actionItem:@"Quit" selector:@selector(quit)]];
     self.statusItem.menu = menu;
+}
+
+- (void)setStateFromMenuItem:(NSMenuItem *)item {
+    NSString *state = [item.representedObject isKindOfClass:NSString.class] ? item.representedObject : nil;
+    if (state.length > 0) {
+        [self writeState:state];
+    }
 }
 
 - (void)writeState:(NSString *)state {
